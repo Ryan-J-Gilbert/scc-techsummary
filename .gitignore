@@ -1,6 +1,8 @@
 # data.js file, which is built for the table display
 data.js
 
+.DS_STORE
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
