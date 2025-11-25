@@ -11,6 +11,7 @@ output_filename = sys.argv[1] if len(sys.argv) > 1 else 'data.js'
 git_dir = os.path.dirname(os.path.abspath(__file__))
 extrainfo_f = os.path.join(git_dir, "extrainfo.csv")
 cpulinks_f  = os.path.join(git_dir, "cpulinks.csv")
+gpulinks_f = os.path.join(git_dir, "gpulinks.csv")
 
 # load nodes data file
 df = pd.read_csv("/projectnb/rcsmetrics/nodes/data/nodes.csv")
@@ -67,10 +68,19 @@ def cpulinks_to_href_dict(filepath):
     
     return result
 
+def gpulinks_to_href_dict(filepath):
+    df = pd.read_csv(filepath, usecols=['gpu_model', 'gpu_url'])
+    href =  "<a href=\"" + df['gpu_url'].astype(str) + "\" target=\"_blank\">" + df['gpu_model'].astype(str) + "</a>"
+    result = pd.Series(href.values, index=df['gpu_model']).to_dict()
+    
+    return result
+
 cpu_display_map = cpulinks_to_href_dict(cpulinks_f)
+gpu_display_map = gpulinks_to_href_dict(gpulinks_f)
 
 
 grouped['processor_type'] = grouped['processor_type'].map(cpu_display_map)
+grouped['gpu_type'] = grouped['gpu_type'].map(gpu_display_map)
 
 # add architecture type
 grouped['processor_type'] = grouped['processor_type'] + "<br>"
