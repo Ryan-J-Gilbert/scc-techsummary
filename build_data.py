@@ -81,7 +81,7 @@ gpu_display_map = gpulinks_to_href_dict(gpulinks_f)
 
 grouped['processor_type'] = grouped['processor_type'].map(cpu_display_map)
 grouped['gpu_type'] = grouped['gpu_type'].map(gpu_display_map)
-df['gpu_type'] = df['gpu_type'].fillna('None')
+grouped['gpu_type'] = grouped['gpu_type'].fillna('None')
 
 # add architecture type
 grouped['processor_type'] = grouped['processor_type'] + "<br>"
