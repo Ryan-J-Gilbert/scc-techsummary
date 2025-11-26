@@ -113,18 +113,8 @@ export_data = grouped.apply(
     axis=1
 ).tolist()
 
-# Debug: print first few rows with GPU info
-print("\nDebug - Sample rows with GPUs:")
-gpu_rows = grouped[grouped['gpus'] > 0][['processor_type', 'gpu_type', 'gpus', 'gpu_cc_numeric']].head(5)
-print(gpu_rows)
-
-print(f"\nTotal exported rows: {len(export_data)}")
-print(f"First row GPU CC value: {export_data[0][8]}")
-
 # output to a "js" file, containing just the const array that will be used for the table
 with open(output_filename, 'w') as outfile:
     outfile.write("const data = ")
     json.dump(export_data, outfile, indent=2)
     outfile.write(";")
-
-print(f"\nData exported to {output_filename}")
