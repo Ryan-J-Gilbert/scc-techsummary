@@ -115,7 +115,10 @@
             <label><input type="checkbox" id="gpuOnly"> Show only nodes with GPUs</label>
             <label><input type="checkbox" id="sharedOnly"> Show only shared nodes</label>
             <label>Minimum RAM (GB):
-                <input type="number" id="minRAM" min="0">
+                <input type="number" id="minRAM" min="0" step="1">
+            </label>
+            <label>Minimum GPU Compute Capability:
+                <input type="number" id="minGPUCC" min="0" step="0.1" placeholder="e.g. 8.0">
             </label>
         </div>
         
@@ -155,16 +158,19 @@
             var gpuType = data[5].trim().toLowerCase();
             var numGPU = parseInt(data[6]);
             var sharing = data[7].trim().toUpperCase();
+            var gpuCC = parseFloat(data[9]) || 0; // Column 9 contains numeric GPU CC value
 
             var cpuOnly = $('#cpuOnly').prop('checked');
             var gpuOnly = $('#gpuOnly').prop('checked');
             var sharedOnly = $('#sharedOnly').prop('checked');
             var minRAM = parseInt($('#minRAM').val()) || 0;
+            var minGPUCC = parseFloat($('#minGPUCC').val()) || 0;
 
             if (cpuOnly && (gpuType !== 'none' || numGPU > 0)) return false;
             if (gpuOnly && (gpuType === 'none' || numGPU === 0)) return false;
             if (sharedOnly && sharing !== 'SHARED') return false;
             if (memoryGB < minRAM) return false;
+            if (minGPUCC > 0 && gpuCC < minGPUCC) return false;
 
             return true;
         });
@@ -235,11 +241,14 @@
         }
 
         $(document).ready(function() {
-            // Prepare data: add blank icon column, and extra info at end
+            // Debug: Check first few rows of raw data
+            console.log('Raw data sample (first 3 rows):', data.slice(0, 3));
+            
+            // Prepare data: add blank icon column, extra info, and GPU CC
             var tableRows = data.map(function(row, idx) {
                 var hostnamesCell = buildHostnamesCell(row[0], idx);
                 var extraInfo = buildExtraInfo(row);
-                return [
+                var processedRow = [
                     '',                   // icon cell (details-control)
                     hostnamesCell,
                     row[1], // processor_type
@@ -248,8 +257,10 @@
                     row[4], // gpu_type
                     row[5], // gpus
                     row[6], // flag
-                    extraInfo             // **not displayed as column**
+                    extraInfo,            // **not displayed as column**
+                    row[8]  // gpu_cc_numeric value for filtering
                 ];
+                return processedRow;
             });
 
             var table = $('#cluster').DataTable({
@@ -267,14 +278,14 @@
                         }
                     },
                     {
-                        targets: 8, // Hide extraInfo column (not visible)
+                        targets: [8, 9], // Hide extraInfo and GPU CC columns (not visible)
                         visible: false,
-                        searchable: false
+                        searchable: true
                     }
                 ]
             });
 
-            $('#cpuOnly, #gpuOnly, #sharedOnly, #minRAM').on('change keyup', function() {
+            $('#cpuOnly, #gpuOnly, #sharedOnly, #minRAM, #minGPUCC').on('change keyup', function() {
                 table.draw();
             });
 

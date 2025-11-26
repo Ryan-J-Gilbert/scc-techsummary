@@ -29,14 +29,18 @@ df = df[df["netbox_status"] == "Active"]
 
 # Clean up na values, reformat strings for output
 df['gpu_type'] = df['gpu_type'].fillna('None')
+
+# IMPORTANT: Save the original numeric gpu_cc BEFORE converting to text
+df['gpu_cc_numeric'] = df['gpu_cc'].fillna(0)  # Keep numeric, default to 0
 df['gpu_cc'] = df['gpu_cc'].fillna('None')
-df['gpu_cc'] = df['gpu_cc'].apply(lambda x: f"Cuda GPU Compute Capability: {x}" if x != 'None' else x)
+df['gpu_cc_text'] = df['gpu_cc'].apply(lambda x: f"Cuda GPU Compute Capability: {x}" if x != 'None' else x)
+
 df['gpu_mem'] = df['gpu_mem'].fillna('None')
 df['gpu_mem'] = df['gpu_mem'].apply(lambda x: f"GPU Memory: {x}GB" if x != 'None' else x)
 
-# group by:
+# group by - ADD gpu_cc_numeric to grouping columns
 group_cols = [
-    'processor_type', 'cores', 'memory', 'scratch', 'eth_speed', 'gpu_type', 'gpus', 'flag', 'cpu_arch', 'gpu_cc', 'gpu_mem'
+    'processor_type', 'cores', 'memory', 'scratch', 'eth_speed', 'gpu_type', 'gpus', 'flag', 'cpu_arch', 'gpu_cc', 'gpu_cc_text', 'gpu_mem', 'gpu_cc_numeric'
 ]
 
 grouped = (
@@ -52,7 +56,7 @@ grouped = (
 
 
 # Sanity check on file
-if len(grouped) < 100 and not 'scc1' in df['host']:
+if len(grouped) < 100 and not 'scc1' in df['host'].values:
     print("File failed sanity check! Data file not renewed.")
     # TODO: send email
     exit(1)
@@ -87,23 +91,40 @@ grouped['gpu_type'] = grouped['gpu_type'].fillna('None')
 grouped['processor_type'] = grouped['processor_type'] + "<br>"
 grouped['processor_type'] = grouped['processor_type'] + grouped["cpu_arch"]
 grouped['extra_info'] = grouped.apply(
-    lambda r: [r['gpu_cc'], r['gpu_mem'], *r['notes']], axis=1
+    lambda r: [r['gpu_cc_text'], r['gpu_mem'], *r['notes']], axis=1
 )
 
 grouped['extra_info'] = grouped['extra_info'].apply(lambda x: [v for v in x if v != "None"])
 grouped['flag'] = grouped['flag'].map({'S':'Shared', 'B':'Buy In'})
 
-output_cols = group_cols + ['quantity', 'hostnames']
-export_data = grouped[output_cols].values.tolist()
-
-# Save in JS display order: [hostnames, processor_type, cores, memory, gpu_type, gpus, flag]
+# Save in JS display order: [hostnames, processor_type, cores, memory, gpu_type, gpus, flag, extra_info, gpu_cc_numeric]
 export_data = grouped.apply(
-    lambda row: [row['hostnames'], row['processor_type'], row['cores'], row['memory'], row['gpu_type'], row['gpus'], row['flag'], row['extra_info']],
+    lambda row: [
+        row['hostnames'], 
+        row['processor_type'], 
+        row['cores'], 
+        row['memory'], 
+        row['gpu_type'], 
+        row['gpus'], 
+        row['flag'], 
+        row['extra_info'],
+        float(row['gpu_cc_numeric'])  # Export as number for filtering
+    ],
     axis=1
 ).tolist()
+
+# Debug: print first few rows with GPU info
+print("\nDebug - Sample rows with GPUs:")
+gpu_rows = grouped[grouped['gpus'] > 0][['processor_type', 'gpu_type', 'gpus', 'gpu_cc_numeric']].head(5)
+print(gpu_rows)
+
+print(f"\nTotal exported rows: {len(export_data)}")
+print(f"First row GPU CC value: {export_data[0][8]}")
 
 # output to a "js" file, containing just the const array that will be used for the table
 with open(output_filename, 'w') as outfile:
     outfile.write("const data = ")
     json.dump(export_data, outfile, indent=2)
     outfile.write(";")
+
+print(f"\nData exported to {output_filename}")
