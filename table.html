@@ -114,6 +114,7 @@
             <label><input type="checkbox" id="cpuOnly"> Show only nodes without GPUs</label>
             <label><input type="checkbox" id="gpuOnly"> Show only nodes with GPUs</label>
             <label><input type="checkbox" id="sharedOnly"> Show only shared nodes</label>
+            <label><input type="checkbox" id="infinibandOnly"> Show only nodes with Infiniband</label>
             <label>Minimum RAM (GB):
                 <input type="number" id="minRAM" min="0" step="1">
             </label>
@@ -159,23 +160,25 @@
             var numGPU = parseInt(data[6]);
             var sharing = data[7].trim().toUpperCase();
             var gpuCC = parseFloat(data[9]) || 0; // Column 9 contains numeric GPU CC value
+            var hasInfiniband = data[10] === 'true'; // Column 10 contains infiniband boolean as string
 
             var cpuOnly = $('#cpuOnly').prop('checked');
             var gpuOnly = $('#gpuOnly').prop('checked');
             var sharedOnly = $('#sharedOnly').prop('checked');
+            var infinibandOnly = $('#infinibandOnly').prop('checked');
             var minRAM = parseInt($('#minRAM').val()) || 0;
             var minGPUCC = parseFloat($('#minGPUCC').val()) || 0;
 
             if (cpuOnly && (gpuType !== 'none' || numGPU > 0)) return false;
             if (gpuOnly && (gpuType === 'none' || numGPU === 0)) return false;
             if (sharedOnly && sharing !== 'SHARED') return false;
+            if (infinibandOnly && !hasInfiniband) return false;
             if (memoryGB < minRAM) return false;
             if (minGPUCC > 0 && gpuCC < minGPUCC) return false;
 
             return true;
         });
 
-        // --- Hostnames cell unchanged, just add one dummy extraInfo column to data
         function buildHostnamesCell(hostnames, idx) {
             if (!Array.isArray(hostnames)) {
                 if (typeof hostnames === 'string') {
@@ -191,11 +194,9 @@
             var expanderId = "hostexpander-" + idx;
             var html = '<ul style="margin:0; padding-left:20px;">';
 
-            // Show all preview hosts
             previewHosts.forEach(function(h) {
                 html += '<li>' + h + '</li>';
             });
-            // If there are hidden hosts, render them in a div (default hidden)
             if (hiddenHosts.length > 0) {
                 html += '<li><span class="host-expander" style="color:blue; cursor:pointer;" data-target="' + expanderId + '" data-action="expand">[+' + hiddenHosts.length + ' more]</span></li>';
                 html += '<div id="' + expanderId + '" style="display:none;">';
@@ -220,6 +221,7 @@
                         <li>Memory: ${row[3]} GB</li>
                         <li>GPU: ${row[4]} (${row[5]})</li>
                         <li>Flag: ${row[6]}</li>
+                        <li>Infiniband: ${row[9] ? 'Yes' : 'No'}</li>
                     </ul>
             `;
             if (typeof row[7] !== 'undefined' && row[7].length) {
@@ -230,35 +232,33 @@
                 row[7].forEach(element => {
                     base += `<li>${element}</li>`;
                 });
+                base += `</ul>`;
             }
             
-            base += `
-                    </ul>
-                </div>
-            `;
+            base += `</div>`;
 
             return base;
         }
 
         $(document).ready(function() {
-            // Debug: Check first few rows of raw data
             console.log('Raw data sample (first 3 rows):', data.slice(0, 3));
             
-            // Prepare data: add blank icon column, extra info, and GPU CC
+            // Prepare data: add blank icon column, extra info, GPU CC, and infiniband
             var tableRows = data.map(function(row, idx) {
                 var hostnamesCell = buildHostnamesCell(row[0], idx);
                 var extraInfo = buildExtraInfo(row);
                 var processedRow = [
-                    '',                   // icon cell (details-control)
-                    hostnamesCell,
-                    row[1], // processor_type
-                    row[2], // cores
-                    row[3], // memory
-                    row[4], // gpu_type
-                    row[5], // gpus
-                    row[6], // flag
-                    extraInfo,            // **not displayed as column**
-                    row[8]  // gpu_cc_numeric value for filtering
+                    '',                   // 0: icon cell (details-control)
+                    hostnamesCell,        // 1: hostnames
+                    row[1],               // 2: processor_type
+                    row[2],               // 3: cores
+                    row[3],               // 4: memory
+                    row[4],               // 5: gpu_type
+                    row[5],               // 6: gpus
+                    row[6],               // 7: flag
+                    extraInfo,            // 8: extra info (hidden)
+                    row[8],               // 9: gpu_cc_numeric (hidden)
+                    row[9] ? 'true' : 'false'  // 10: infiniband boolean as string (hidden)
                 ];
                 return processedRow;
             });
@@ -274,18 +274,18 @@
                         searchable: false,
                         width: "30px",
                         render: function() {
-                            return '<span class="details-icon" style="cursor:pointer;">&#8853;</span>'; // ⊕
+                            return '<span class="details-icon" style="cursor:pointer;">&#8853;</span>';
                         }
                     },
                     {
-                        targets: [8, 9], // Hide extraInfo and GPU CC columns (not visible)
+                        targets: [8, 9, 10], // Hide extraInfo, GPU CC, and Infiniband columns
                         visible: false,
                         searchable: true
                     }
                 ]
             });
 
-            $('#cpuOnly, #gpuOnly, #sharedOnly, #minRAM, #minGPUCC').on('change keyup', function() {
+            $('#cpuOnly, #gpuOnly, #sharedOnly, #infinibandOnly, #minRAM, #minGPUCC').on('change keyup', function() {
                 table.draw();
             });
 
@@ -309,15 +309,12 @@
                 var row = table.row(tr);
 
                 if (row.child.isShown()) {
-                    // Close: change to plus icon, hide info
                     tr.removeClass('shown');
-                    $(this).find('span.details-icon').html('&#8853;'); // ⊕
+                    $(this).find('span.details-icon').html('&#8853;');
                     row.child.hide();
                 } else {
-                    // Open: change to X icon, show info
                     tr.addClass('shown');
-                    $(this).find('span.details-icon').html('&#8854;'); // ⊖
-                    // Show info from hidden column
+                    $(this).find('span.details-icon').html('&#8854;');
                     row.child(row.data()[8]).show();
                 }
             });
