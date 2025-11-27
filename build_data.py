@@ -38,9 +38,12 @@ df['gpu_cc_text'] = df['gpu_cc'].apply(lambda x: f"Cuda GPU Compute Capability: 
 df['gpu_mem'] = df['gpu_mem'].fillna('None')
 df['gpu_mem'] = df['gpu_mem'].apply(lambda x: f"GPU Memory: {x}GB" if x != 'None' else x)
 
+df['has_infiniband'] = df['ib_speed'] > 0
+df['has_infiniband'] = df['has_infiniband'].astype(bool)
+
 # group by - ADD gpu_cc_numeric to grouping columns
 group_cols = [
-    'processor_type', 'cores', 'memory', 'scratch', 'eth_speed', 'gpu_type', 'gpus', 'flag', 'cpu_arch', 'gpu_cc', 'gpu_cc_text', 'gpu_mem', 'gpu_cc_numeric'
+    'processor_type', 'cores', 'memory', 'scratch', 'eth_speed', 'gpu_type', 'gpus', 'flag', 'cpu_arch', 'gpu_cc', 'gpu_cc_text', 'gpu_mem', 'gpu_cc_numeric', 'has_infiniband'
 ]
 
 grouped = (
@@ -108,7 +111,8 @@ export_data = grouped.apply(
         row['gpus'], 
         row['flag'], 
         row['extra_info'],
-        float(row['gpu_cc_numeric'])  # Export as number for filtering
+        float(row['gpu_cc_numeric']),  # Export as number for filtering
+        row['has_infiniband']
     ],
     axis=1
 ).tolist()
