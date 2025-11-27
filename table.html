@@ -160,7 +160,7 @@
             var numGPU = parseInt(data[6]);
             var sharing = data[7].trim().toUpperCase();
             var gpuCC = parseFloat(data[9]) || 0; // Column 9 contains numeric GPU CC value
-            var hasInfiniband = data[10] === 'true'; // Column 10 contains infiniband boolean as string
+            var hasInfiniband = data[10] > 0;
 
             var cpuOnly = $('#cpuOnly').prop('checked');
             var gpuOnly = $('#gpuOnly').prop('checked');
@@ -213,7 +213,7 @@
         function buildExtraInfo(row) {
             let base = `
                 <div class="extra-info-box">
-                    <b>Set Information</b><br>
+                    <b>Detailed Information</b><br>
                     <ul>
                         <li>Hosts: ${Array.isArray(row[0]) ? row[0].join(', ') : row[0]}</li>
                         <li>Processor: ${row[1]}</li>
@@ -221,7 +221,8 @@
                         <li>Memory: ${row[3]} GB</li>
                         <li>GPU: ${row[4]} (${row[5]})</li>
                         <li>Flag: ${row[6]}</li>
-                        <li>Infiniband: ${row[9] ? 'Yes' : 'No'}</li>
+                        <li>Infiniband: ${row[9]} Gbps</li>
+                        <li>Ethernet: ${row[10]} Gbps</li>
                     </ul>
             `;
             if (typeof row[7] !== 'undefined' && row[7].length) {
@@ -258,7 +259,8 @@
                     row[6],               // 7: flag
                     extraInfo,            // 8: extra info (hidden)
                     row[8],               // 9: gpu_cc_numeric (hidden)
-                    row[9] ? 'true' : 'false'  // 10: infiniband boolean as string (hidden)
+                    row[9],  // 10: infiniband boolean as string (hidden)
+                    row[10]
                 ];
                 return processedRow;
             });
@@ -278,7 +280,7 @@
                         }
                     },
                     {
-                        targets: [8, 9, 10], // Hide extraInfo, GPU CC, and Infiniband columns
+                        targets: [8, 9, 10, 11], // Hide extraInfo, GPU CC, and Infiniband columns
                         visible: false,
                         searchable: true
                     }
