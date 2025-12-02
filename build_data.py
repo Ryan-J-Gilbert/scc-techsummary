@@ -12,9 +12,16 @@ git_dir = os.path.dirname(os.path.abspath(__file__))
 extrainfo_f = os.path.join(git_dir, "extrainfo.csv")
 cpulinks_f  = os.path.join(git_dir, "cpulinks.csv")
 gpulinks_f = os.path.join(git_dir, "gpulinks.csv")
+NODES_FILE = "/projectnb/rcsmetrics/nodes/data/nodes.csv"
+
+# validate file existence
+for file_path in [extrainfo_f, cpulinks_f, gpulinks_f, NODES_FILE]:
+    if not os.path.exists(file_path):
+        print(f"The file '{file_path}' does not exist!")
+        exit(1)
 
 # load nodes data file
-df = pd.read_csv("/projectnb/rcsmetrics/nodes/data/nodes.csv")
+df = pd.read_csv(NODES_FILE)
 extra_notes = pd.read_csv(extrainfo_f)
 
 # merge extra nodes onto base dataframe
@@ -83,6 +90,18 @@ def gpulinks_to_href_dict(filepath):
 cpu_display_map = cpulinks_to_href_dict(cpulinks_f)
 gpu_display_map = gpulinks_to_href_dict(gpulinks_f)
 
+# check if all CPUs and GPUs have corresponding links
+dif = set(grouped['processor_type']) - set(cpu_display_map.keys())
+dif.discard('None')
+if len(dif):
+    print(f"Missing CPU links for: ", dif)
+    # exit(1)
+
+dif = set(grouped['gpu_type']) - set(gpu_display_map.keys())
+dif.discard('None')
+if len(dif):
+    print(f"Missing GPU links for: ", dif)
+    # exit(1)
 
 grouped['processor_type'] = grouped['processor_type'].map(cpu_display_map)
 grouped['gpu_type'] = grouped['gpu_type'].map(gpu_display_map)
