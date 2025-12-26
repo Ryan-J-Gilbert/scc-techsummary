@@ -117,6 +117,17 @@ grouped['extra_info'] = grouped.apply(
 grouped['extra_info'] = grouped['extra_info'].apply(lambda x: [v for v in x if v != "None"])
 grouped['flag'] = grouped['flag'].map({'S':'Shared', 'B':'Buy In'})
 
+# make sure default ordering by hostname
+grouped = grouped.sort_values(
+    by="hostnames",
+    key=lambda col: col.map(
+        lambda hosts: (
+            hosts[0],          # primary: lexicographic
+            len(hosts[0])      # secondary: shorter first
+        ) if isinstance(hosts, list) and hosts else ("", 0)
+    )
+)
+
 # Save in JS display order: [hostnames, processor_type, cores, memory, gpu_type, gpus, flag, extra_info, gpu_cc_numeric]
 export_data = grouped.apply(
     lambda row: [
